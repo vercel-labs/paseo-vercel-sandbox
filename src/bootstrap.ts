@@ -130,12 +130,16 @@ export async function writeBootstrapToSandbox(
   await sandbox.writeFiles([{ path: "/vercel/bootstrap.sh", content, mode: 0o755 }]);
 }
 
-export async function runBootstrap(sandbox: Sandbox, _state: SessionState): Promise<void> {
+export async function runBootstrap(
+  sandbox: Sandbox,
+  _state: SessionState,
+  timeoutMs = 10 * 60 * 1000,
+): Promise<void> {
   const result = await sandbox.runCommand({
     cmd: "/bin/bash",
     args: ["/vercel/bootstrap.sh"],
     env: { AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY ?? "" },
-    timeoutMs: 10 * 60 * 1000,
+    timeoutMs,
   });
   const stdout = await result.stdout();
   const stderr = await result.stderr();

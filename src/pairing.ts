@@ -57,6 +57,7 @@ export function parsePairingOffer(url: string, label = "pairing offer"): Pairing
 export async function startDaemonAndPair(
   sandbox: Sandbox,
   state: SessionState,
+  timeouts = { start: 240_000, pair: 30_000 },
 ): Promise<PairingResult> {
   const home = state.paseoHome;
   const agentKey = process.env.AI_GATEWAY_API_KEY;
@@ -87,7 +88,7 @@ export async function startDaemonAndPair(
         `tail -20 ${shellQuote(home + "/daemon.log")} >&2 2>/dev/null || true`,
     ],
     env: providerLaunchEnvironment(agentKey, state.agentModel),
-    timeoutMs: 240_000,
+    timeoutMs: timeouts.start,
   });
   const startOut = await start.stdout();
   const startErr = await start.stderr();
@@ -111,7 +112,7 @@ export async function startDaemonAndPair(
         `export PATH="$HOME/.npm-global/bin:$PATH"; ` +
         `paseo daemon pair --relay --json --home ${shellQuote(home)}`,
     ],
-    timeoutMs: 30_000,
+    timeoutMs: timeouts.pair,
   });
   const pairOut = await pair.stdout();
   if (pair.exitCode !== 0) throw new Error(`pairing failed: exit ${pair.exitCode}`);

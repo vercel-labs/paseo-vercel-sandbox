@@ -11,7 +11,63 @@ port: clients reach it through the Paseo relay only.
 This is an independent package. It does not require changes to Paseo and does
 not depend on Paseo's experimental plugin API.
 
+## Deploy your launcher
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fpaseo-vercel-sandbox%2Ftree%2Fpaseo-web-launcher-20260916&project-name=paseo-sandbox&repository-name=paseo-sandbox&env=LAUNCHER_SECRET%2CAI_GATEWAY_API_KEY&envDescription=Set+a+random+owner+access+key+of+at+least+32+characters+and+your+Vercel+AI+Gateway+API+key.+Keep+both+private.&envLink=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fpaseo-vercel-sandbox%2Ftree%2Fpaseo-web-launcher-20260916%23deploy-your-launcher&stores=%5B%7B%22type%22%3A%22blob%22%2C%22access%22%3A%22private%22%7D%5D)
+
+Deploy a private web launcher to your Vercel account. Choose Codex, Claude Code,
+OpenCode, or Pi, start a sandbox, and pair it with Paseo. The launcher runs on Vercel, so you can return from another browser.
+
+The button creates a Vercel project and a **private Blob store** for session
+records and pairing links. Set two variables when prompted:
+
+| Variable | Value |
+| --- | --- |
+| `LAUNCHER_SECRET` | At least 32 random characters from your password manager. Use this key to sign in. |
+| `AI_GATEWAY_API_KEY` | Your [Vercel AI Gateway API key](https://vercel.com/docs/ai-gateway/authentication-and-byok/api-keys). |
+
+Open the deployed app, sign in with your access key, choose an agent, and select
+**Start host**. When ready, select **Show pairing**, then **Copy**. In [Paseo](https://app.paseo.sh),
+select **Paste pairing link** (under **Hosts → Add host** if already connected),
+paste it, and select **Pair**. Return to the workspace screen. Choose **Add project
+→ Search for directory**, enter `/vercel/workspace/repo`, and select it. Choose
+**Select model**, then your agent and model (**Gateway** for Codex). Enter a task
+and select **Create**. Keep the pairing link private.
+
+The web launcher uses `vercel/sandbox/universal:latest` and installs the
+compatible agent versions pinned below. Each agent choice has its own sandbox;
+conversations on that host share its files and credentials. Only starting an
+agent creates a sandbox; deployment alone does not.
+
+Wait for active work to finish before selecting **Stop**. **Resume** restores
+files and conversations, then restarts the daemon. The 30-minute timeout and
+24-hour snapshot retention below still apply. Save any work you need before
+**Delete**, which removes the sandbox and its snapshots.
+
+For the web app, select Node.js 24.x in the Vercel project’s build settings.
+
+If setup fails, check the app's setup checklist and your project variables.
+Interrupted operations retain their session record. Use **Retry** when offered;
+the launcher reuses that session instead of creating another one. After a timeout, Retry becomes available within 10 minutes of the operation
+starting.
+Operations have a bounded execution window after the request, independently of
+the browser; they do not retry automatically. Missing or expired hosts are never
+silently replaced: explicitly delete their record before starting again.
+
+The project must have OIDC enabled under **Settings → Security** so the launcher
+can create sandboxes using its Vercel identity. The default project setup supplies
+this identity; if it is disabled, enable it and redeploy.
+
+This is a single-owner app. Anyone with your access key can manage all four
+sessions. It uses the deployed project's Vercel identity, so a personal Vercel
+token is not needed. Keep the connected Blob store private. CLI sessions below
+use local records and are separate from the web launcher.
+
+For terminal control, use the CLI instructions below.
+
 ## Prerequisites
+
+The following steps are for terminal control. Web users can use the Deploy Button above.
 
 - Node.js 22 or newer, npm, Git, and the [Vercel CLI](https://vercel.com/docs/cli).
 - A Vercel account with access to a project that can create sandboxes.
@@ -140,9 +196,11 @@ PASEO_HOST="$(paseo-sandbox connect <id> --url)" paseo ls
 The environment-variable form keeps the link out of process arguments.
 
 To pair the [Paseo web client](https://app.paseo.sh), run
-`paseo-sandbox connect <id> --url`. Copy the entire URL, click your browser's
-address bar, paste it, and navigate. Paste into the browser address bar,
-not the agent's message box. Open the existing conversation in the sidebar.
+`paseo-sandbox connect <id> --url`. In the web client, select **Hosts → Add
+host → Paste pairing link**. Paste the entire URL into **Pairing link** and
+select **Pair**. Select **Back**, then open the workspace under **repo** in
+the sidebar and the existing conversation. This explicit pairing flow also
+works in a browser with no saved Paseo hosts.
 Web pairing and user-originated follow-ups were verified with Codex, Claude
 Code, OpenCode, and Pi on September 16, 2026. Desktop and mobile were not
 part of that verification.
