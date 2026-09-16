@@ -13,7 +13,7 @@ not depend on Paseo's experimental plugin API.
 
 ## Deploy your launcher
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fpaseo-vercel-sandbox%2Ftree%2Ffeat%2Fweb-launcher-20260916&project-name=paseo-sandbox&repository-name=paseo-sandbox&env=LAUNCHER_SECRET%2CAI_GATEWAY_API_KEY&envDescription=Set+a+random+owner+access+key+of+at+least+32+characters+and+your+Vercel+AI+Gateway+API+key.+Keep+both+private.&envLink=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fpaseo-vercel-sandbox%2Ftree%2Ffeat%2Fweb-launcher-20260916%23deploy-your-launcher&stores=%5B%7B%22type%22%3A%22blob%22%2C%22access%22%3A%22private%22%7D%5D)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fpaseo-vercel-sandbox%2Ftree%2Fpaseo-web-launcher-20260916&project-name=paseo-sandbox&repository-name=paseo-sandbox&env=LAUNCHER_SECRET%2CAI_GATEWAY_API_KEY&envDescription=Set+a+random+owner+access+key+of+at+least+32+characters+and+your+Vercel+AI+Gateway+API+key.+Keep+both+private.&envLink=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fpaseo-vercel-sandbox%2Ftree%2Fpaseo-web-launcher-20260916%23deploy-your-launcher&stores=%5B%7B%22type%22%3A%22blob%22%2C%22access%22%3A%22private%22%7D%5D)
 
 Deploy a private web launcher to your Vercel account. Choose Codex, Claude Code,
 OpenCode, or Pi, start a sandbox, and pair it with Paseo. The launcher runs on Vercel, so you can return from another browser.
