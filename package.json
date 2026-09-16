@@ -3,43 +3,38 @@
   "version": "0.1.0",
   "description": "Run Paseo coding agents inside a persistent Vercel Sandbox",
   "license": "Apache-2.0",
-  "bin": {
-    "paseo-sandbox": "./dist/cli.js"
-  },
-  "files": [
-    "dist",
-    "fixture",
-    "README.md",
-    "LICENSE"
-  ],
+  "bin": { "paseo-sandbox": "./dist/cli.js" },
+  "files": ["dist", "fixture", "README.md", "LICENSE"],
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "build:web": "npm run build && next build",
     "typecheck": "tsc --noEmit",
+    "typecheck:web": "npm run build && tsc --noEmit -p tsconfig.web.json",
     "test": "npm run build && node --test test/*.test.mjs",
+    "test:web": "npm run build && node --experimental-strip-types --test test/web/*.test.mjs",
     "test:package": "node scripts/test-package.mjs",
     "test:docs": "node scripts/test-docs.mjs",
     "test:live": "node scripts/live.mjs"
   },
   "dependencies": {
     "@getpaseo/client": "0.8.0",
+    "@vercel/blob": "2.8.0",
     "@vercel/oidc": "3.2.0",
     "@vercel/sandbox": "3.3.0",
-    "commander": "^12.0.0"
+    "commander": "^12.0.0",
+    "next": "16.3.5",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
     "typescript": "^5.9.0"
   },
-  "engines": {
-    "node": ">=22"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/vercel-labs/paseo-vercel-sandbox.git"
-  },
-  "bugs": {
-    "url": "https://github.com/vercel-labs/paseo-vercel-sandbox/issues"
-  },
+  "engines": { "node": ">=22" },
+  "repository": { "type": "git", "url": "git+https://github.com/vercel-labs/paseo-vercel-sandbox.git" },
+  "bugs": { "url": "https://github.com/vercel-labs/paseo-vercel-sandbox/issues" },
   "homepage": "https://github.com/vercel-labs/paseo-vercel-sandbox#readme"
 }

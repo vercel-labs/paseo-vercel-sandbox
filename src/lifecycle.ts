@@ -162,12 +162,12 @@ export async function deleteVerifiedSnapshot(
 export async function destroySandboxAndSnapshots(
   creds: VercelCredentials,
   state: SessionState,
-  persist: (state: SessionState) => void,
+  persist: (state: SessionState) => unknown | Promise<unknown>,
 ): Promise<string[]> {
   try {
     const sandbox = await getSandbox(creds, state, false);
     await collectOwnedSnapshotCleanup(sandbox, state);
-    persist(state);
+    await persist(state);
     await sandbox.delete();
   } catch (error) {
     if (!isNotFound(error)) throw error;
@@ -178,7 +178,7 @@ export async function destroySandboxAndSnapshots(
       throw new Error(`snapshot ${id} has no verified provenance`);
     }
   }
-  persist(state);
+  await persist(state);
   const deleted: string[] = [];
   for (const record of state.snapshots.slice()) {
     try {
@@ -203,7 +203,7 @@ export async function destroySandboxAndSnapshots(
 
   state.snapshots = state.snapshots.filter((record) => !deleted.includes(record.id));
   state.snapshotIds = state.snapshotIds.filter((id) => !deleted.includes(id));
-  persist(state);
+  await persist(state);
   return deleted;
 }
 

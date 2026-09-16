@@ -21,6 +21,7 @@ export interface ProviderDiagnosticResult {
 export async function providerDiagnostic(
   sandbox: Sandbox,
   state: SessionState,
+  timeoutMs = 180_000,
 ): Promise<ProviderDiagnosticResult> {
   const provider = resolveProvider(state.agentProvider);
   const agentKey = process.env.AI_GATEWAY_API_KEY;
@@ -48,7 +49,7 @@ export async function providerDiagnostic(
         `paseo provider diagnostic ${provider.id} --json`,
     ],
     env: providerLaunchEnvironment(agentKey, state.agentModel),
-    timeoutMs: 180_000,
+    timeoutMs,
   });
   const stdout = await result.stdout();
   const stderr = await result.stderr();

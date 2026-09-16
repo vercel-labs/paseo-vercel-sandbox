@@ -233,7 +233,9 @@ test("destroy persists discovered snapshots before deleting the sandbox", async 
     },
   };
   const persisted = [];
-  const deleted = await destroySandboxAndSnapshots(creds, sessionState, (value) => {
+  const deleted = await destroySandboxAndSnapshots(creds, sessionState, async (value) => {
+    events.push("persist-start");
+    await new Promise((resolve) => setTimeout(resolve, 5));
     events.push("persist");
     persisted.push(structuredClone(value));
   });
