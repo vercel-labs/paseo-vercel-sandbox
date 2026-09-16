@@ -140,9 +140,11 @@ PASEO_HOST="$(paseo-sandbox connect <id> --url)" paseo ls
 The environment-variable form keeps the link out of process arguments.
 
 To pair the [Paseo web client](https://app.paseo.sh), run
-`paseo-sandbox connect <id> --url`. Copy the entire URL, click your browser's
-address bar, paste it, and navigate. Paste into the browser address bar,
-not the agent's message box. Open the existing conversation in the sidebar.
+`paseo-sandbox connect <id> --url`. In the web client, select **Hosts → Add
+host → Paste pairing link**. Paste the entire URL into **Pairing link** and
+select **Pair**. Select **Back**, then open the workspace under **repo** in
+the sidebar and the existing conversation. This explicit pairing flow also
+works in a browser with no saved Paseo hosts.
 Web pairing and user-originated follow-ups were verified with Codex, Claude
 Code, OpenCode, and Pi on September 16, 2026. Desktop and mobile were not
 part of that verification.
