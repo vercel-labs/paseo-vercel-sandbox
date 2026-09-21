@@ -8,8 +8,14 @@ The sandbox filesystem is preserved across stop and resume, so you can pick up
 where you left off. The daemon inside the sandbox never listens on a public
 port: clients reach it through the Paseo relay only.
 
-This is an independent package. It does not require changes to Paseo and does
-not depend on Paseo's experimental plugin API.
+Two ways to use it:
+
+- **Paseo plugin** (recommended if you already run Paseo): a "Vercel Sandboxes"
+  screen inside Paseo that creates, stops, resumes and deletes cloud agent hosts.
+  See [`plugins/vercel-sandbox`](plugins/vercel-sandbox/README.md). Install with
+  `paseo plugin add vercel-labs/paseo-vercel-sandbox:plugins/vercel-sandbox --ref plugin-vercel-sandbox`.
+- **Standalone CLI** (this README): a separate command for terminal use and
+  automated provisioning. It does not require changes to Paseo.
 
 ## Prerequisites
 

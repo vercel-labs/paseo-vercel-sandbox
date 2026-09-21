@@ -1,0 +1,33 @@
+{
+  "name": "paseo-vercel-sandbox-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-sdk.mjs && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "test:package": "node scripts/test-package.mjs",
+    "test:recovery": "npm run build && node --test test/recovery.test.mjs",
+    "test:e2e": "node scripts/test-e2e.mjs"
+  },
+  "dependencies": {
+    "@vercel/sandbox": "3.3.0"
+  },
+  "devDependencies": {
+    "@getpaseo/client": "0.8.0",
+    "@getpaseo/plugin": "0.8.0",
+    "@getpaseo/protocol": "0.8.0",
+    "@types/node": "22.15.12",
+    "@types/react": "19.2.14",
+    "dts-bundle-generator": "9.5.1",
+    "esbuild": "0.25.12",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "typescript": "5.9.3",
+    "zod": "4.4.3"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}
