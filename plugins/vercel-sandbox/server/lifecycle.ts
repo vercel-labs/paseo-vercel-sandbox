@@ -5,7 +5,7 @@ import type { SessionState, SnapshotRecord } from "./types.js";
 
 export const DEFAULT_IMAGE = "vercel/sandbox/universal:latest";
 export const DEFAULT_REGION = "iad1";
-export const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
+export const DEFAULT_TIMEOUT_MS = 24 * 60 * 60 * 1000;
 export const SNAPSHOT_EXPIRATION_MS = 24 * 60 * 60 * 1000;
 export const KEEP_LAST_SNAPSHOTS = 3;
 
@@ -37,7 +37,7 @@ export function recordVerifiedSession(sandbox: Sandbox, state: SessionState): st
 }
 
 export async function createSandbox(
-  creds: VercelCredentials,
+  creds: VercelCredentials & { sessionTimeoutMs?: number },
   state: SessionState,
   signal?: AbortSignal,
 ): Promise<Sandbox> {
@@ -46,7 +46,7 @@ export async function createSandbox(
     name: state.sandboxName,
     image: state.image,
     region: state.region,
-    timeout: DEFAULT_TIMEOUT_MS,
+    timeout: creds.sessionTimeoutMs ?? DEFAULT_TIMEOUT_MS,
     persistent: true,
     snapshotExpiration: SNAPSHOT_EXPIRATION_MS,
     keepLastSnapshots: { count: KEEP_LAST_SNAPSHOTS },

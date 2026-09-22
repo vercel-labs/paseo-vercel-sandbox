@@ -189,7 +189,7 @@ export function HostsScreen({ theme, layout, openSettings }: HostsScreenProps) {
             {slot.statusError === "existing_host_missing" ? "The remote host is missing; use Delete after reviewing snapshots." : "Remote status is unavailable. The local host record is retained."}
           </Text>
         )}
-        <Text style={styles.subtitle}>Running sessions time out after 30 minutes. Snapshots are kept for 24 hours, with the 3 most recent retained.</Text>
+        <Text style={styles.subtitle}>New hosts run until the configured session timeout (24 hours by default; the Hobby plan allows 45 minutes). Existing hosts keep the timeout they were created with. Snapshots are kept for 24 hours, with the 3 most recent retained.</Text>
         {retryAction && (
           <Text style={styles.danger}>
             Last operation failed{failedOperation?.publicError === "operation_ambiguous" ? " with an uncertain remote result" : ""}. Retry reconciles the same host.

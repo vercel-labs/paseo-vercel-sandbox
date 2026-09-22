@@ -16,7 +16,7 @@ Paseo clones the repository and compiles the plugin itself. No dependency instal
 
 ## Configure
 
-Open **Settings → Plugins → Vercel Sandbox**. On first setup, enter a Vercel token, team ID, project ID, and AI Gateway key; no replacement switches are needed.
+Open **Settings → Plugins → Vercel Sandbox**. On first setup, enter a Vercel token, team ID, project ID, and AI Gateway key; no replacement switches are needed. The optional **Session timeout (minutes)** field defaults to 1440 (24 hours) and applies to hosts created after you save it; existing hosts keep the timeout they were created with. **On the Hobby plan, Vercel Sandbox sessions are limited to 45 minutes**, so set this to 45 or less there. Vercel documents the limit for extending a session; a larger value at creation is expected to be refused on Hobby, which this plugin has not verified on a Hobby team. If a first Create is refused, correct the setting and use **Retry**: a host that never allocated anything adopts the corrected settings. Pro and Enterprise allow up to 24 hours.
 
 Where to find them: create the token at https://vercel.com/account/settings/tokens. The team and project IDs are the `orgId` and `projectId` values in `.vercel/project.json` after running `vercel link` in any local folder for that project, and both also appear under each Settings → General page in the dashboard. Create the Gateway key in the AI Gateway section of your team dashboard. After credentials exist, enter a new secret only when you intend to rotate it and turn on that secret's replacement switch. Team and project IDs are restored when you revisit settings. Secret inputs clear after a successful save.
 
@@ -40,7 +40,7 @@ The controller daemon must be online for create, stop, resume, diagnose, and del
 
 Stop saves the persistent filesystem through a Sandbox snapshot. Resume restores the same named Sandbox, records the new session ID immediately, and verifies the same daemon identity. Delete requires typing the agent ID and removes the owned Sandbox and verified snapshots.
 
-Running sessions time out after 30 minutes. The status screen shows the remote session end time, refreshes remote state on a throttled basis, and offers an explicit refresh. If a running session times out, the host changes to stopped and **Resume** becomes available; the plugin never automatically resumes it. Snapshots expire after 24 hours, and the 3 most recent snapshots are retained.
+New hosts run until the configured session timeout, 24 hours by default (45 minutes at most on the Hobby plan); existing hosts keep the timeout they were created with. The status screen shows the remote session end time, refreshes remote state on a throttled basis, and offers an explicit refresh. If a running session times out, the host changes to stopped and **Resume** becomes available; the plugin never automatically resumes it. Snapshots expire after 24 hours, and the 3 most recent snapshots are retained.
 
 Snapshot recovery restores files and workspace history. It does not resume an active process or continue an interrupted turn.
 

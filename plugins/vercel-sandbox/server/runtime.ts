@@ -125,6 +125,26 @@ function isDefiniteRejection(error: unknown): boolean {
   return typeof status === "number" && status >= 400 && status < 500 && status !== 408 && status !== 409;
 }
 
+// The allocation marker may only be resolved together with durable proof of the session it produced;
+// otherwise a worker that dies between create and checkpoint leaves a running sandbox with no marker.
+async function resolveCreateWithSession(
+  store: SlotStore,
+  agent: AgentId,
+  operationId: string,
+  state: SessionState,
+  sandbox: Awaited<ReturnType<RuntimeDependencies["getSandbox"]>>,
+): Promise<void> {
+  recordVerifiedSession(sandbox, state);
+  await fencedUpdate(store, agent, operationId, (record) => {
+    if (record.session) record.session.sessionIds = state.sessionIds;
+    record.uncertainAllocations = (record.uncertainAllocations ?? []).map((allocation) =>
+      allocation.sandboxName === state.sandboxName && !allocation.resolvedAt
+        ? { ...allocation, resolvedAt: new Date().toISOString() }
+        : allocation,
+    );
+  });
+}
+
 async function resolveUncertainCreate(
   store: SlotStore,
   agent: AgentId,
@@ -291,7 +311,7 @@ async function start(
     sandbox = await remoteEffect(store, agent, operationId, fence, REMOTE_METADATA_TIMEOUT_MS, (signal) =>
       dependencies.getSandbox(credential, state, false, signal),
     );
-    if (sandbox) await resolveUncertainCreate(store, agent, operationId, state);
+    if (sandbox) await resolveCreateWithSession(store, agent, operationId, state, sandbox);
   } catch (error) {
     if (!isNotFound(error)) throw error;
     const currentRecord = await store.read(agent);
@@ -315,7 +335,7 @@ async function start(
       if (isDefiniteRejection(error)) await resolveUncertainCreate(store, agent, operationId, state);
       throw error;
     }
-    await resolveUncertainCreate(store, agent, operationId, state);
+    await resolveCreateWithSession(store, agent, operationId, state, sandbox);
   }
   sandbox = await waitUntilNotPending(store, agent, operationId, credential, state, sandbox, dependencies, fence);
   if (sandbox.status !== "running") {

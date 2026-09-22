@@ -46,6 +46,7 @@ const statusOutput = z.object({
     contextCount: z.number().int().nonnegative(),
     teamId: z.string().optional(),
     projectId: z.string().optional(),
+    sessionTimeoutMinutes: z.number().int().optional(),
   }),
   slots: z.array(slot),
 });
@@ -57,6 +58,7 @@ const credentialsSaveInput = z.object({
   gatewayKey: z.string().min(1).optional(),
   replaceVercelToken: z.boolean(),
   replaceGatewayKey: z.boolean(),
+  sessionTimeoutMinutes: z.number().int().min(5).max(24 * 60).optional(),
 });
 
 export const statusRpc = defineRpc({

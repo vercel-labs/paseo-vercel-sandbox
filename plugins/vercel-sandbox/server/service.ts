@@ -4,7 +4,7 @@ import { AGENT_IDS, type AgentId } from "../shared/agents.js";
 import type { AgentAction } from "./types.js";
 import { CredentialsStore, pluginStateRoot, type CredentialContext } from "./credentials.js";
 import { acquireExclusiveLock, StateLockedError, withExclusiveLock, type ExclusiveLockHandle } from "./fs.js";
-import { acquireOperation, failOperation } from "./operations.js";
+import { acquireOperation, failOperation, rebindUnallocatedHost } from "./operations.js";
 import { executeOperation, runtimeDefaultDependencies, type RuntimeDependencies, type WorkerFence } from "./runtime.js";
 import { SlotStore } from "./store.js";
 import { newSessionState } from "./state.js";
@@ -170,6 +170,10 @@ export class PluginService {
         contextCount: credentials.value?.contexts.length ?? 0,
         teamId: credentials.value?.contexts.find((context) => context.id === credentials.value?.activeContextId)?.teamId,
         projectId: credentials.value?.contexts.find((context) => context.id === credentials.value?.activeContextId)?.projectId,
+        sessionTimeoutMinutes: (() => {
+          const ms = credentials.value?.contexts.find((context) => context.id === credentials.value?.activeContextId)?.sessionTimeoutMs;
+          return ms ? Math.round(ms / 60_000) : undefined;
+        })(),
       },
       slots,
     };
@@ -212,13 +216,14 @@ export class PluginService {
       if (this.disposed) throw new Error("plugin_disposed");
       const record = await withExclusiveLock(this.controlPath, async () => {
         const active = await this.credentials.readActive();
-        return acquireOperation(this.slots, agent, action, () => newSessionState({
+        const acquired = await acquireOperation(this.slots, agent, action, () => newSessionState({
           teamId: active.teamId,
           projectId: active.projectId,
           credentialId: active.id,
           agentProvider: agent,
           agentModel: PROVIDERS[agent].defaultModel,
         }));
+        return rebindUnallocatedHost(this.slots, agent, acquired, active);
       });
       if (!record.operation) throw new Error("operation_missing");
       const operationId = record.operation.id;

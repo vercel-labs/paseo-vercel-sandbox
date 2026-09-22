@@ -466,6 +466,84 @@ test("a checkpoint after a lapsed lease succeeds for the same operation", async 
   await assert.rejects(() => fencedUpdate(slots, "codex", "not-the-operation", () => {}, late), ConflictError);
 });
 
+test("session timeout defaults to 24 hours, accepts 5..1440 minutes, and is kept across saves", async () => {
+  const { credentials, active } = await makeRoot();
+  assert.equal(active.sessionTimeoutMs, 24 * 60 * 60 * 1000);
+  await credentials.save({ teamId: "case-team", projectId: "case-project", replaceVercelToken: false, replaceGatewayKey: false, sessionTimeoutMinutes: 45 });
+  assert.equal((await credentials.readActive()).sessionTimeoutMs, 45 * 60 * 1000);
+  await credentials.save({ teamId: "case-team", projectId: "case-project", replaceVercelToken: false, replaceGatewayKey: false });
+  assert.equal((await credentials.readActive()).sessionTimeoutMs, 45 * 60 * 1000, "omitting the field keeps the previous value");
+  for (const bad of [4, 1441, 30.5]) {
+    await assert.rejects(() => credentials.save({ teamId: "case-team", projectId: "case-project", replaceVercelToken: false, replaceGatewayKey: false, sessionTimeoutMinutes: bad }), /session_timeout_invalid/);
+  }
+});
+
+test("retrying a refused create adopts the corrected active credentials", async () => {
+  const { root, credentials, slots, active } = await makeRoot();
+  const seen = [];
+  let createCount = 0;
+  const deps = makeDeps(undefined, {
+    getSandbox: async () => { throw { response: { status: 404 } }; },
+    createSandbox: async (credential, state) => {
+      createCount++; seen.push({ id: credential.id, timeout: credential.sessionTimeoutMs });
+      if (createCount === 1) throw Object.assign(new Error("Payment Required"), { response: { status: 402 } });
+      return fakeSandbox(state, "running", "fresh-session");
+    },
+    providerDiagnostic: async () => ({ ok: true, provider: "codex", providerMatched: true, status: "Ready", modelCount: 12, exitCode: 0, parseError: false }),
+  });
+  const service = new PluginService(root, deps);
+  const done = async () => { for (let i = 0; i < 200; i++) { const r = (await slots.read("codex")).value; if (r?.operation && r.operation.status !== "running") return r; await new Promise((res) => setTimeout(res, 25)); } throw new Error("worker did not finish"); };
+  await service.act("codex", "start");
+  let record = await done();
+  assert.equal(record.operation.publicError, "operation_failed");
+  assert.equal(seen[0].id, active.id);
+  // The user fixes the timeout (a new active context) and presses Retry.
+  await service.saveCredentials({ teamId: "case-team", projectId: "case-project", replaceVercelToken: false, replaceGatewayKey: false, sessionTimeoutMinutes: 45 });
+  const corrected = await credentials.readActive();
+  assert.notEqual(corrected.id, active.id);
+  await service.act("codex", "start");
+  record = await done();
+  assert.equal(record.operation.status, "complete");
+  assert.equal(seen[1].id, corrected.id, "retry must use the corrected context");
+  assert.equal(seen[1].timeout, 45 * 60 * 1000);
+  assert.equal(record.session.credentialId, corrected.id);
+  assert.equal(record.session.teamId, corrected.teamId);
+  assert.equal(record.session.projectId, corrected.projectId);
+  await service.dispose();
+});
+
+test("a host whose create succeeded but failed before its first checkpoint keeps its credentials on retry", async () => {
+  // The failure sits inside the create -> checkpoint window: create returns a stopped sandbox and the
+  // resume that follows throws, before the "created" checkpoint. In v12 this left the allocation marker
+  // resolved with no session id, which the rebind read as "nothing allocated".
+  const { root, credentials, slots, active } = await makeRoot();
+  const seen = [];
+  let resumes = 0;
+  const deps = makeDeps(undefined, {
+    getSandbox: async (credential, current) => { if (!seen.length) throw { response: { status: 404 } }; return fakeSandbox(current, "running", "allocated-session"); },
+    createSandbox: async (credential, state) => { seen.push(credential.id); return fakeSandbox(state, "stopped", "allocated-session"); },
+    resumeSandbox: async () => { resumes++; if (resumes === 1) throw new Error("resume exploded"); },
+    providerDiagnostic: async () => ({ ok: true, provider: "codex", providerMatched: true, status: "Ready", modelCount: 12, exitCode: 0, parseError: false }),
+  });
+  const service = new PluginService(root, deps);
+  const done = async () => { for (let i = 0; i < 200; i++) { const r = (await slots.read("codex")).value; if (r?.operation && r.operation.status !== "running") return r; await new Promise((res) => setTimeout(res, 25)); } throw new Error("worker did not finish"); };
+  await service.act("codex", "start");
+  let record = await done();
+  assert.equal(record.operation.publicError, "operation_failed");
+  assert.equal(record.session.phase, "failed");
+  assert.deepEqual(record.session.sessionIds, ["allocated-session"], "session id must be durable as soon as create returns");
+  assert.ok(record.uncertainAllocations.every((allocation) => allocation.resolvedAt));
+  // The user changes team/project; the running sandbox must stay bound to the credentials that created it.
+  await service.saveCredentials({ teamId: "other-team", projectId: "other-project", replaceVercelToken: false, replaceGatewayKey: false });
+  await service.act("codex", "start");
+  record = await done();
+  assert.equal(record.operation.status, "complete");
+  assert.equal(record.session.credentialId, active.id, "an allocated host is never rebound");
+  assert.equal(record.session.projectId, "case-project");
+  assert.equal(seen.length, 1, "no second sandbox is created");
+  await service.dispose();
+});
+
 test("heartbeat renews a lapsed lease while the operation is still ours", async () => {
   const { slots, active } = await makeRoot();
   const first = await acquireOperation(slots, "codex", "start", () => makeSession(active, "codex", { phase: "bootstrapping" }));

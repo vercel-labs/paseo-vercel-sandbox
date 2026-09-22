@@ -17,6 +17,11 @@ export function CredentialsScreen({ theme }: PluginSurfaceProps) {
   const [contextCount, setContextCount] = useState(0);
   const [teamId, setTeamId] = useState("");
   const [projectId, setProjectId] = useState("");
+  const [sessionTimeout, setSessionTimeout] = useState("");
+  const sessionTimeoutRef = useRef<SettingsInputHandle | null>(null);
+  const sessionTimeoutTouchedRef = useRef(false);
+  const parsedTimeout = sessionTimeout.trim() === "" ? undefined : Number(sessionTimeout);
+  const timeoutInvalid = parsedTimeout !== undefined && (!Number.isInteger(parsedTimeout) || parsedTimeout < 5 || parsedTimeout > 1440);
   const [vercelToken, setVercelToken] = useState("");
   const [gatewayKey, setGatewayKey] = useState("");
   const [replaceVercelToken, setReplaceVercelToken] = useState(false);
@@ -36,6 +41,11 @@ export function CredentialsScreen({ theme }: PluginSurfaceProps) {
         const savedTeamId = status.credentials.teamId ?? "";
         setTeamId(savedTeamId);
         teamIdRef.current?.replaceText(savedTeamId);
+      }
+      if (!sessionTimeoutTouchedRef.current && status.credentials.sessionTimeoutMinutes !== undefined) {
+        const saved = String(status.credentials.sessionTimeoutMinutes);
+        setSessionTimeout(saved);
+        sessionTimeoutRef.current?.replaceText(saved);
       }
       if (!projectIdTouchedRef.current) {
         const savedProjectId = status.credentials.projectId ?? "";
@@ -64,6 +74,10 @@ export function CredentialsScreen({ theme }: PluginSurfaceProps) {
     setError(undefined);
     setSaved(undefined);
     try {
+      if (timeoutInvalid) {
+        setError("Session timeout must be a whole number of minutes between 5 and 1440. The Hobby plan allows at most 45.");
+        return;
+      }
       if (configured && ((vercelToken.length > 0 && !replaceVercelToken) || (gatewayKey.length > 0 && !replaceGatewayKey))) {
         setError("Turn on the replacement switch for each newly entered secret.");
         return;
@@ -75,6 +89,7 @@ export function CredentialsScreen({ theme }: PluginSurfaceProps) {
         gatewayKey: gatewayKey || undefined,
         replaceVercelToken,
         replaceGatewayKey,
+        sessionTimeoutMinutes: parsedTimeout,
       });
       setSaved("Credentials saved in backend-private storage.");
       clearSecretInputs();
@@ -98,8 +113,11 @@ export function CredentialsScreen({ theme }: PluginSurfaceProps) {
       setProjectId("");
       teamIdTouchedRef.current = false;
       projectIdTouchedRef.current = false;
+      sessionTimeoutTouchedRef.current = false;
+      setSessionTimeout("");
       teamIdRef.current?.replaceText("");
       projectIdRef.current?.replaceText("");
+      sessionTimeoutRef.current?.replaceText("");
       await refresh();
     } catch (error) {
       setError(String(error).includes("credential_references_remain")
@@ -120,6 +138,7 @@ export function CredentialsScreen({ theme }: PluginSurfaceProps) {
         </SettingsRow>
         <SettingsInput ref={teamIdRef} label="Vercel team ID" onChangeText={(text) => { teamIdTouchedRef.current = true; setTeamId(text); }} placeholder="team_..." />
         <SettingsInput ref={projectIdRef} label="Vercel project ID" onChangeText={(text) => { projectIdTouchedRef.current = true; setProjectId(text); }} placeholder="prj_..." />
+        <SettingsInput ref={sessionTimeoutRef} label="Session timeout (minutes)" onChangeText={(text) => { sessionTimeoutTouchedRef.current = true; setSessionTimeout(text); }} placeholder="1440 (Hobby plan: 45 or less)" />
         <SettingsInput ref={vercelTokenRef} label="Vercel token" onChangeText={setVercelToken} placeholder={configured ? "Leave blank to keep" : "Required"} secureTextEntry />
         {configured && (
           <SettingsSwitch label="Replace stored Vercel token" value={replaceVercelToken} onValueChange={setReplaceVercelToken} />
@@ -128,7 +147,7 @@ export function CredentialsScreen({ theme }: PluginSurfaceProps) {
         {configured && (
           <SettingsSwitch label="Replace stored AI Gateway key" value={replaceGatewayKey} onValueChange={setReplaceGatewayKey} />
         )}
-        <SettingsAction label="Credential storage" actionLabel={busy ? "Saving…" : "Save credentials"} onPress={() => void save()} disabled={busy || !teamId || !projectId || (configured !== true && (!vercelToken || !gatewayKey))} />
+        <SettingsAction label="Credential storage" actionLabel={busy ? "Saving…" : "Save credentials"} onPress={() => void save()} disabled={busy || timeoutInvalid || !teamId || !projectId || (configured !== true && (!vercelToken || !gatewayKey))} />
         <SettingsAction label="Credential removal" hint="Available only after every host journal is empty." actionLabel={busy ? "Working…" : "Remove credentials"} onPress={() => void remove()} disabled={busy || !configured} />
       </SettingsCard>
       {saved && <Text style={{ color: theme.colors.foreground }}>{saved}</Text>}

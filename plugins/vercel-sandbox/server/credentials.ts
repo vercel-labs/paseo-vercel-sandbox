@@ -10,9 +10,15 @@ export interface VercelCredentials {
   projectId: string;
 }
 
+// Sandbox session timeout. Pro and Enterprise allow up to 24 hours; the Hobby plan allows 45 minutes.
+export const DEFAULT_SESSION_TIMEOUT_MINUTES = 24 * 60;
+export const MIN_SESSION_TIMEOUT_MINUTES = 5;
+export const MAX_SESSION_TIMEOUT_MINUTES = 24 * 60;
+
 export interface CredentialContext extends VercelCredentials {
   id: string;
   gatewayKey: string;
+  sessionTimeoutMs?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -81,6 +87,7 @@ export class CredentialsStore {
     gatewayKey?: string;
     replaceVercelToken: boolean;
     replaceGatewayKey: boolean;
+    sessionTimeoutMinutes?: number;
     preserveContextIds?: readonly string[];
     expectedDigest?: string;
   }): Promise<string> {
@@ -92,6 +99,13 @@ export class CredentialsStore {
       if (previous && input.replaceVercelToken && !input.vercelToken) throw new Error("vercel_token_missing");
       if (previous && input.replaceGatewayKey && !input.gatewayKey) throw new Error("gateway_key_missing");
 
+      const storedMinutes = previous?.sessionTimeoutMs ? Math.round(previous.sessionTimeoutMs / 60_000) : undefined;
+      const minutes = input.sessionTimeoutMinutes
+        ?? (storedMinutes !== undefined && storedMinutes >= MIN_SESSION_TIMEOUT_MINUTES && storedMinutes <= MAX_SESSION_TIMEOUT_MINUTES
+          ? storedMinutes : DEFAULT_SESSION_TIMEOUT_MINUTES);
+      if (!Number.isInteger(minutes) || minutes < MIN_SESSION_TIMEOUT_MINUTES || minutes > MAX_SESSION_TIMEOUT_MINUTES) {
+        throw new Error("session_timeout_invalid");
+      }
       const now = new Date().toISOString();
       const active: CredentialContext = {
         id: randomUUID(),
@@ -99,6 +113,7 @@ export class CredentialsStore {
         teamId: input.teamId,
         projectId: input.projectId,
         gatewayKey: input.replaceGatewayKey && input.gatewayKey ? input.gatewayKey : previous?.gatewayKey ?? input.gatewayKey ?? "",
+        sessionTimeoutMs: minutes * 60_000,
         createdAt: now,
         updatedAt: now,
       };

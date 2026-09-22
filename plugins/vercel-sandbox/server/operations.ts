@@ -48,6 +48,29 @@ export async function acquireOperation(
   });
 }
 
+// A host that never allocated anything (no session, no pairing, no open allocation marker) carries no
+// remote state, so a retried start may adopt the currently active credentials, including a corrected
+// session timeout or project. Anything that touched the cloud keeps the context that created it.
+export async function rebindUnallocatedHost(
+  store: SlotStore,
+  agent: AgentId,
+  record: SlotRecord,
+  active: { id: string; teamId: string; projectId: string },
+): Promise<SlotRecord> {
+  const session = record.session;
+  const operation = record.operation;
+  if (!session || !operation || operation.action !== "start" || session.credentialId === active.id) return record;
+  if (session.sessionIds.length > 0 || session.pairingUrl || session.snapshots.length > 0 || session.snapshotIds.length > 0) return record;
+  if ((record.uncertainAllocations ?? []).some((allocation) => !allocation.resolvedAt)) return record;
+  return fencedUpdate(store, agent, operation.id, (current) => {
+    if (current.session) {
+      current.session.credentialId = active.id;
+      current.session.teamId = active.teamId;
+      current.session.projectId = active.projectId;
+    }
+  });
+}
+
 export async function fencedUpdate(
   store: SlotStore,
   agent: AgentId,
