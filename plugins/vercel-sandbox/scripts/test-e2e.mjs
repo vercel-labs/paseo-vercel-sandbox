@@ -12,8 +12,10 @@ assert.equal(process.env.PASEO_E2E_RUN, "1", "Set PASEO_E2E_RUN=1 to authorize f
 const plugin = resolve(process.env.PASEO_E2E_PLUGIN ?? fileURLToPath(new URL("..", import.meta.url)));
 const cli = process.env.PASEO_E2E_CLI;
 const browserPackage = process.env.PASEO_E2E_PLAYWRIGHT;
-assert.ok(cli && browserPackage, "Set PASEO_E2E_CLI and PASEO_E2E_PLAYWRIGHT to pinned CLI0.8 and Playwright module paths");
-assert.equal(JSON.parse(await readFile(join(dirname(dirname(cli)), "package.json"), "utf8")).version, "0.8.0");
+assert.ok(cli && browserPackage, "Set PASEO_E2E_CLI and PASEO_E2E_PLAYWRIGHT to a pinned Paseo CLI (0.8 or 0.9) and Playwright module paths");
+// Controller CLI may be 0.8.x (flag-based start) or 0.9.x (`daemon run` plus persistent configuration).
+const cliVersion = JSON.parse(await readFile(join(dirname(dirname(cli)), "package.json"), "utf8")).version;
+assert.match(cliVersion, /^0\.(8|9)\./, `unsupported controller CLI version ${cliVersion}`);
 const { chromium } = createRequire(import.meta.url)(browserPackage);
 const { Sandbox, Snapshot } = await import(pathToFileURL(join(plugin, "dist/server/sdk.js")));
 const { destroySandboxAndSnapshots } = await import(pathToFileURL(join(plugin, "dist/server/lifecycle.js")));
@@ -34,7 +36,7 @@ const root = await mkdtemp(join(tmpdir(), "paseo-plugin-e2e-"));
 const home = join(root, "home");
 const stateRoot = join(root, "state");
 await mkdir(home, { mode: 0o700 });
-await writeFile(join(home, "config.json"), JSON.stringify({ pluginsEnabled: true }), { mode: 0o600 });
+await writeFile(join(home, "config.json"), JSON.stringify({ pluginsEnabled: true, daemon: { mcp: { enabled: false }, relay: { enabled: false } } }), { mode: 0o600 });
 const port = await new Promise((res, rej) => {
   const server = createServer(); server.once("error", rej);
   server.listen(0, "127.0.0.1", () => { const value = server.address().port; server.close(() => res(value)); });
@@ -117,18 +119,34 @@ try {
   git(["init", "-b", "test"]); git(["add", "plugins"]);
   git(["-c", "user.name=Plugin tests", "-c", "user.email=plugin-tests@example.invalid", "commit", "-m", "Plugin test fixture"]);
   report.fixtureCommit = git(["rev-parse", "HEAD"]).trim();
-  daemon = spawn(process.execPath, [cli, "daemon", "start", "--foreground", "--home", home, "--listen", `127.0.0.1:${port}`, "--no-relay", "--no-mcp", "--no-inject-mcp", "--web-ui"], { env: daemonEnv, stdio: ["ignore", "pipe", "pipe"] });
+  // Paseo 0.8 takes flags on `daemon start`; 0.9 removed them in favour of `daemon run` plus PASEO_* env overrides.
+  const controllerMode = process.env.PASEO_E2E_CLI_MODE ?? "flags";
+  const controllerArgs = controllerMode === "run"
+    ? [cli, "daemon", "run", "--home", home]
+    : [cli, "daemon", "start", "--foreground", "--home", home, "--listen", `127.0.0.1:${port}`, "--no-relay", "--no-mcp", "--no-inject-mcp", "--web-ui"];
+  const controllerEnv = controllerMode === "run"
+    ? { ...daemonEnv, PASEO_LISTEN: `127.0.0.1:${port}`, PASEO_WEB_UI_ENABLED: "true" }
+    : daemonEnv;
+  daemon = spawn(process.execPath, controllerArgs, { env: controllerEnv, stdio: ["ignore", "pipe", "pipe"] });
   daemon.stdout.on("data", () => {}); daemon.stderr.on("data", () => {});
   await until(async () => { try { return (await fetch(base)).ok; } catch { return false; } }, "isolated daemon startup");
   const runCli = args => execFileSync(process.execPath, [cli, ...args], { env: daemonEnv, encoding: "utf8", timeout: 600000, stdio: ["ignore", "pipe", "pipe"] });
-  controllerId = JSON.parse(runCli(["daemon", "status", "--home", home, "--json"])).serverId;
+  const controllerStatus = JSON.parse(runCli(["daemon", "status", "--home", home, "--json"]));
+  controllerId = controllerStatus.serverId;
+  report.controller = { cliVersion, daemonVersion: controllerStatus.daemonVersion, mode: controllerMode, relayEnabled: controllerStatus.relay?.enabled };
+  assert.equal(controllerStatus.relay?.enabled, false, "controller relay must be off in the E2E");
+  assert.equal(JSON.parse(await readFile(join(home, "config.json"), "utf8")).daemon.mcp.enabled, false);
   const installed = JSON.parse(runCli(["plugin", "add", `${pathToFileURL(source)}:plugins/vercel-sandbox`, "--ref", report.fixtureCommit, "--host", `127.0.0.1:${port}`, "--json"]));
   assert.equal(installed.source, "git"); assert.equal(installed.status, "running"); assert.equal(installed.commit, report.fixtureCommit);
   record("clean Git subdirectory install and server activation");
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ permissions: ["clipboard-read", "clipboard-write"], viewport: { width: 1440, height: 1000 } });
   page = await context.newPage(); page.setDefaultTimeout(30000);
-  await page.goto(base + `/settings/hosts/${controllerId}/plugins`); await button("Open").click();
+  await page.goto(base + `/settings/hosts/${controllerId}/plugins`);
+  // 0.8 shows an Open button on the plugin row; 0.9 puts the plugin's settings screen behind a per-row actions menu.
+  if (await button("Open").count()) await button("Open").click();
+  else { await button("Actions for vercel-sandbox").click(); await page.getByText("Vercel Sandbox", { exact: true }).click(); }
+  await textbox("Vercel team ID").waitFor({ state: "visible" });
   await textbox("Vercel team ID").fill(credentials.teamId); await textbox("Vercel project ID").fill(credentials.projectId);
   await textbox("Vercel token").fill(credentials.token); await textbox("AI Gateway key").fill(credentials.gateway);
   await button("Save credentials").click();

@@ -1,10 +1,10 @@
 # Paseo Vercel Sandbox plugin
 
-This Paseo 0.8 plugin manages four persistent Vercel Sandbox agent hosts: Codex, Claude Code, OpenCode, and Pi. It uses Paseo's native surface, settings screen, and typed RPC. It does not require the repository's Next.js app, Vercel Blob, or a separate launcher.
+This Paseo plugin (Paseo 0.8 or newer) manages four persistent Vercel Sandbox agent hosts: Codex, Claude Code, OpenCode, and Pi. It uses Paseo's native surface, settings screen, and typed RPC. It does not require the repository's Next.js app, Vercel Blob, or a separate launcher.
 
 ## Install
 
-Use Node.js 24 or newer and Paseo 0.8.x on both the controller daemon and client. In **Settings → Plugins**, turn on **Enable plugins**.
+Use Node.js 24 or newer and Paseo 0.8.0 or newer on both the controller daemon and client (verified on 0.8.0 and 0.9.1). Hosts created by the plugin run Paseo 0.8.0 inside the sandbox; Paseo 0.9 clients connect to 0.8.0 daemons. In **Settings → Plugins**, turn on **Enable plugins**.
 
 Install it from this repository:
 
@@ -16,7 +16,7 @@ Paseo clones the repository and compiles the plugin itself. No dependency instal
 
 ## Configure
 
-Open **Settings → Plugins → Vercel Sandbox**. On first setup, enter a Vercel token, team ID, project ID, and AI Gateway key; no replacement switches are needed. The optional **Session timeout (minutes)** field defaults to 1440 (24 hours) and applies to hosts created after you save it; existing hosts keep the timeout they were created with. **On the Hobby plan, Vercel Sandbox sessions are limited to 45 minutes**, so set this to 45 or less there. Vercel documents the limit for extending a session; a larger value at creation is expected to be refused on Hobby, which this plugin has not verified on a Hobby team. If a first Create is refused, correct the setting and use **Retry**: a host that never allocated anything adopts the corrected settings. Pro and Enterprise allow up to 24 hours.
+Open **Settings → Plugins → Vercel Sandbox** (on Paseo 0.9, open the actions menu on the `vercel-sandbox` row and choose **Vercel Sandbox**). On first setup, enter a Vercel token, team ID, project ID, and AI Gateway key; no replacement switches are needed. The optional **Session timeout (minutes)** field defaults to 1440 (24 hours) and applies to hosts created after you save it; existing hosts keep the timeout they were created with. **On the Hobby plan, Vercel Sandbox sessions are limited to 45 minutes**, so set this to 45 or less there. Vercel documents the limit for extending a session; a larger value at creation is expected to be refused on Hobby, which this plugin has not verified on a Hobby team. If a first Create is refused, correct the setting and use **Retry**: a host that never allocated anything adopts the corrected settings. Pro and Enterprise allow up to 24 hours.
 
 Where to find them: create the token at https://vercel.com/account/settings/tokens. The team and project IDs are the `orgId` and `projectId` values in `.vercel/project.json` after running `vercel link` in any local folder for that project, and both also appear under each Settings → General page in the dashboard. Create the Gateway key in the AI Gateway section of your team dashboard. After credentials exist, enter a new secret only when you intend to rotate it and turn on that secret's replacement switch. Team and project IDs are restored when you revisit settings. Secret inputs clear after a successful save.
 
@@ -60,7 +60,7 @@ The existing standalone CLI and web launcher remain untouched. Remote publicatio
 
 From this plugin directory, run `npm ci`, `npm run typecheck`, `npm test`, and `npm run test:package`. The package check verifies that a clean copy of the committed files needs no install or build step and that the committed SDK prebundle is reproducible from the lockfile.
 
-`npm run test:e2e` (run `npm run build` first; it imports the compiled SDK) installs a clean Git copy into an isolated Paseo 0.8 daemon, drives the browser UI for all four agents, verifies files and follow-ups after restart, then deletes its hosts and snapshots. It uses billable cloud resources. Set these environment variables in your local shell without committing their values:
+`npm run test:e2e` (run `npm run build` first; it imports the compiled SDK) installs a clean Git copy into an isolated Paseo daemon (0.8 or 0.9; point `PASEO_E2E_CLI` at the CLI entry point and set `PASEO_E2E_CLI_MODE=run` for a 0.9 controller, which starts with `daemon run` and persistent configuration instead of 0.8 flags), drives the browser UI for all four agents, verifies files and follow-ups after restart, then deletes its hosts and snapshots. It uses billable cloud resources. Set these environment variables in your local shell without committing their values:
 
 - `PASEO_E2E_RUN=1`
 - `PASEO_E2E_CLI`: absolute path to `@getpaseo/cli/dist/index.js` from version 0.8.0

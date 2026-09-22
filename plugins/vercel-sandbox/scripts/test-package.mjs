@@ -11,7 +11,7 @@ const manifest = JSON.parse(readFileSync(join(root, "paseo-plugin.json"), "utf8"
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
 assert.equal(manifest.id, "vercel-sandbox");
-assert.equal(manifest.requirements.paseo, "^0.8.0");
+assert.equal(manifest.requirements.paseo, ">=0.8.0");
 // Install must be a plain clone: the Paseo CLI gives up after 60 s, and a cold npm ci exceeds that.
 assert.equal(manifest.build, undefined);
 assert.equal(pkg.dependencies["@vercel/sandbox"], "3.3.0");
