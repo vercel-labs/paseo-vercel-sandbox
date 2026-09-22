@@ -14,6 +14,8 @@ paseo plugin add vercel-labs/paseo-vercel-sandbox:plugins/vercel-sandbox --ref p
 
 Paseo clones the repository and compiles the plugin itself. No dependency install or build step runs on the daemon host; the Vercel Sandbox SDK ships prebundled in `server/generated/sdk.js`.
 
+Until this plugin is on the repository's default branch, use the CLI command above: the **Plugin source** field in Paseo's Settings → Plugins installs a Git source from its default branch and has no place for a branch name, so pasting the source there fails with `ENOENT ... checkout/plugins/vercel-sandbox`.
+
 ## Configure
 
 Open **Settings → Plugins → Vercel Sandbox** (on Paseo 0.9, open the actions menu on the `vercel-sandbox` row and choose **Vercel Sandbox**). On first setup, enter a Vercel token, team ID, project ID, and AI Gateway key; no replacement switches are needed. The optional **Session timeout (minutes)** field defaults to 1440 (24 hours) and applies to hosts created after you save it; existing hosts keep the timeout they were created with. **On the Hobby plan, Vercel Sandbox sessions are limited to 45 minutes**, so set this to 45 or less there. Vercel documents the limit for extending a session; a larger value at creation is expected to be refused on Hobby, which this plugin has not verified on a Hobby team. If a first Create is refused, correct the setting and use **Retry**: a host that never allocated anything adopts the corrected settings. Pro and Enterprise allow up to 24 hours.
