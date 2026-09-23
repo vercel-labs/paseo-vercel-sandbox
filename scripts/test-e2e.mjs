@@ -15,7 +15,7 @@ const browserPackage = process.env.PASEO_E2E_PLAYWRIGHT;
 assert.ok(cli && browserPackage, "Set PASEO_E2E_CLI and PASEO_E2E_PLAYWRIGHT to a pinned Paseo CLI (0.8 or 0.9) and Playwright module paths");
 // Controller CLI may be 0.8.x (flag-based start) or 0.9.x (`daemon run` plus persistent configuration).
 const cliVersion = JSON.parse(await readFile(join(dirname(dirname(cli)), "package.json"), "utf8")).version;
-assert.match(cliVersion, /^0\.(8|9)\./, `unsupported controller CLI version ${cliVersion}`);
+assert.match(cliVersion, /^0\.9\./, `unsupported controller CLI version ${cliVersion}`);
 const { chromium } = createRequire(import.meta.url)(browserPackage);
 const { Sandbox, Snapshot } = await import(pathToFileURL(join(plugin, "dist/server/sdk.js")));
 const { destroySandboxAndSnapshots } = await import(pathToFileURL(join(plugin, "dist/server/lifecycle.js")));
@@ -120,7 +120,7 @@ try {
   git(["-c", "user.name=Plugin tests", "-c", "user.email=plugin-tests@example.invalid", "commit", "-m", "Plugin test fixture"]);
   report.fixtureCommit = git(["rev-parse", "HEAD"]).trim();
   // Paseo 0.8 takes flags on `daemon start`; 0.9 removed them in favour of `daemon run` plus PASEO_* env overrides.
-  const controllerMode = process.env.PASEO_E2E_CLI_MODE ?? "flags";
+  const controllerMode = process.env.PASEO_E2E_CLI_MODE ?? "run";
   const controllerArgs = controllerMode === "run"
     ? [cli, "daemon", "run", "--home", home]
     : [cli, "daemon", "start", "--foreground", "--home", home, "--listen", `127.0.0.1:${port}`, "--no-relay", "--no-mcp", "--no-inject-mcp", "--web-ui"];

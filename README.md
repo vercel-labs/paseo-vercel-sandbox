@@ -1,10 +1,10 @@
 # Paseo Vercel Sandbox plugin
 
-This Paseo plugin (Paseo 0.8 or newer) manages four persistent Vercel Sandbox agent hosts: Codex, Claude Code, OpenCode, and Pi. It uses Paseo's native surface, settings screen, and typed RPC. It does not require the repository's Next.js app, Vercel Blob, or a separate launcher.
+This Paseo plugin (Paseo 0.9 or newer) manages four persistent Vercel Sandbox agent hosts: Codex, Claude Code, OpenCode, and Pi. It uses Paseo's native surface, settings screen, and typed RPC. It does not require the repository's Next.js app, Vercel Blob, or a separate launcher.
 
 ## Install
 
-Use Node.js 24 or newer and Paseo 0.8.0 or newer on both the controller daemon and client (verified on 0.8.0 and 0.9.1). In **Settings → Plugins**, turn on **Enable plugins**.
+Use Node.js 24 or newer and Paseo 0.9.0 or newer on both the controller daemon and client (verified on 0.9.1). In **Settings → Plugins**, turn on **Enable plugins**.
 
 Hosts created by the plugin run Paseo 0.9.1 inside the sandbox, so current desktop, web and mobile clients can read their session history.
 
@@ -66,10 +66,10 @@ The existing standalone CLI and web launcher remain untouched. Remote publicatio
 
 From this plugin directory, run `npm ci`, `npm run typecheck`, `npm test`, and `npm run test:package`. The package check verifies that a clean copy of the committed files needs no install or build step and that the committed SDK prebundle is reproducible from the lockfile.
 
-`npm run test:e2e` (run `npm run build` first; it imports the compiled SDK) installs a clean Git copy into an isolated Paseo daemon (0.8 or 0.9; point `PASEO_E2E_CLI` at the CLI entry point and set `PASEO_E2E_CLI_MODE=run` for a 0.9 controller, which starts with `daemon run` and persistent configuration instead of 0.8 flags), drives the browser UI for all four agents, verifies files and follow-ups after restart, then deletes its hosts and snapshots. It uses billable cloud resources. Set these environment variables in your local shell without committing their values:
+`npm run test:e2e` (run `npm run build` first; it imports the compiled SDK) installs a clean Git copy into an isolated Paseo 0.9 daemon (point `PASEO_E2E_CLI` at the CLI entry point), drives the browser UI for all four agents, verifies files and follow-ups after restart, then deletes its hosts and snapshots. It uses billable cloud resources. Set these environment variables in your local shell without committing their values:
 
 - `PASEO_E2E_RUN=1`
-- `PASEO_E2E_CLI`: absolute path to `@getpaseo/cli/dist/index.js` from version 0.8.0
+- `PASEO_E2E_CLI`: absolute path to `@getpaseo/cli/dist/index.js` from version 0.9.1
 - `PASEO_E2E_PLAYWRIGHT`: absolute path to an installed Playwright module with Chromium available
 - `VERCEL_TOKEN`, `VERCEL_TEAM_ID`, `VERCEL_PROJECT_ID`, and `AI_GATEWAY_API_KEY`
 - Optional `PASEO_E2E_REPORT`: destination for the redacted JSON report

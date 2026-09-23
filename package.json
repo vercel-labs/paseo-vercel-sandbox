@@ -30,9 +30,9 @@
     "@vercel/sandbox": "3.3.0"
   },
   "devDependencies": {
-    "@getpaseo/client": "0.8.0",
-    "@getpaseo/plugin": "0.8.0",
-    "@getpaseo/protocol": "0.8.0",
+    "@getpaseo/client": "0.9.1",
+    "@getpaseo/plugin": "0.9.1",
+    "@getpaseo/protocol": "0.9.1",
     "@types/node": "22.15.12",
     "@types/react": "19.2.14",
     "dts-bundle-generator": "9.5.1",
