@@ -1,290 +1,77 @@
-# Paseo + Vercel Sandbox
+# Paseo Vercel Sandbox plugin
 
-Run a [Paseo](https://paseo.sh) daemon and a coding agent inside a persistent
-[Vercel Sandbox](https://vercel.com/docs/sandbox), then connect from your
-existing Paseo client over Paseo's end-to-end encrypted relay.
-
-The sandbox filesystem is preserved across stop and resume, so you can pick up
-where you left off. The daemon inside the sandbox never listens on a public
-port: clients reach it through the Paseo relay only.
-
-Two ways to use it:
-
-- **Paseo plugin** (recommended if you already run Paseo): a "Vercel Sandboxes"
-  screen inside Paseo that creates, stops, resumes and deletes cloud agent hosts.
-  See [`plugins/vercel-sandbox`](plugins/vercel-sandbox/README.md). Install with
-  `paseo plugin add vercel-labs/paseo-vercel-sandbox:plugins/vercel-sandbox --ref plugin-vercel-sandbox`.
-- **Standalone CLI** (this README): a separate command for terminal use and
-  automated provisioning. It does not require changes to Paseo.
-
-## Prerequisites
-
-- Node.js 22 or newer, npm, Git, and the [Vercel CLI](https://vercel.com/docs/cli).
-- A Vercel account with access to a project that can create sandboxes.
-- A [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) API key for the
-  coding agent.
-- A browser for the verified web setup. CLI, desktop, and mobile clients are also available from Paseo.
+This Paseo plugin (Paseo 0.8 or newer) manages four persistent Vercel Sandbox agent hosts: Codex, Claude Code, OpenCode, and Pi. It uses Paseo's native surface, settings screen, and typed RPC. It does not require the repository's Next.js app, Vercel Blob, or a separate launcher.
 
 ## Install
 
-This launcher uses the published Paseo 0.8.0 SDK and CLI. It is not published
-to npm. Clone this repository, then build and install a local tarball:
+Use Node.js 24 or newer and Paseo 0.8.0 or newer on both the controller daemon and client (verified on 0.8.0 and 0.9.1). In **Settings → Plugins**, turn on **Enable plugins**.
+
+Hosts created by the plugin run Paseo 0.9.1 inside the sandbox, so current desktop, web and mobile clients can read their session history.
+
+Install it from this repository:
 
 ```bash
-git clone https://github.com/vercel-labs/paseo-vercel-sandbox.git
-cd paseo-vercel-sandbox
-npm ci
-npm run build
-npm pack
-npm install -g ./elisabethrulke-paseo-vercel-sandbox-0.1.0.tgz
+paseo plugin add vercel-labs/paseo-vercel-sandbox
 ```
 
-### Authenticate
+Paseo clones the repository and compiles the plugin itself. No dependency install or build step runs on the daemon host; the Vercel Sandbox SDK ships prebundled in `server/generated/sdk.js`.
 
-Authenticate the launcher with the Vercel CLI so it can mint project-scoped
-OIDC tokens:
+You can paste the same source into the **Plugin source** field in Paseo's Settings → Plugins.
 
-```bash
-vercel login
-vercel link   # from paseo-vercel-sandbox
-```
+## Configure
 
-Run the launcher commands below from that linked directory.
+Open **Settings → Plugins → Vercel Sandbox** (on Paseo 0.9, open the actions menu on the `vercel-sandbox` row and choose **Vercel Sandbox**). On first setup, enter a Vercel token, team ID, project ID, and AI Gateway key; no replacement switches are needed. The optional **Session timeout (minutes)** field defaults to 1440 (24 hours) and applies to hosts created after you save it; existing hosts keep the timeout they were created with. **On the Hobby plan, Vercel Sandbox sessions are limited to 45 minutes**, so set this to 45 or less there. Vercel documents the limit for extending a session; a larger value at creation is expected to be refused on Hobby, which this plugin has not verified on a Hobby team. If a first Create is refused, correct the setting and use **Retry**: a host that never allocated anything adopts the corrected settings. Pro and Enterprise allow up to 24 hours.
 
-Alternatively set `VERCEL_TOKEN`, `VERCEL_TEAM_ID`, and `VERCEL_PROJECT_ID`.
+Where to find them: create the token at https://vercel.com/account/settings/tokens. The team and project IDs are the `orgId` and `projectId` values in `.vercel/project.json` after running `vercel link` in any local folder for that project, and both also appear under each Settings → General page in the dashboard. Create the Gateway key in the AI Gateway section of your team dashboard. After credentials exist, enter a new secret only when you intend to rotate it and turn on that secret's replacement switch. Team and project IDs are restored when you revisit settings. Secret inputs clear after a successful save.
 
-Set the agent key:
+Secrets are stored in backend-private files under the daemon user's Paseo plugin state directory, not in Paseo's shared settings document. The plugin checks your Gateway key before creating a sandbox.
 
-```bash
-export AI_GATEWAY_API_KEY=...
-```
+**The Gateway key never enters the sandbox.** It is placed in the sandbox's egress firewall policy, which injects `Authorization: Bearer <key>` into every request the sandbox makes to `ai-gateway.vercel.sh` and leaves all other traffic untouched. Inside the sandbox the agents see the placeholder `brokered-by-vercel-sandbox-firewall` in their environment and config files; the firewall replaces it on the way out, so code running in the sandbox cannot read or exfiltrate the real key. The policy is set when the sandbox is created and reapplied on every Start and Resume, so a rotated Gateway key takes effect the next time a host is started or resumed. Only the Vercel token stays on your machine; it is used by the plugin itself and is never sent to the sandbox.
 
-```bash
-paseo-sandbox doctor
-```
+If a Create fails because the API refused it (for example an invalid project, a plan limit, or an exhausted Gateway budget), the row shows the failure and **Retry** runs the create again once you have fixed the cause. A create that timed out, hit a server error, lost its connection, or returned a conflict is kept as an unresolved allocation until the same host name can be looked up, because the sandbox may exist.
 
-For a CLI client, install the version used by this integration:
+Existing hosts keep the credential context that created them. Replacing active credentials does not retag or transfer those hosts. There is no per-host credential replacement in this version. Keep the original token valid until its hosts are deleted. Rotating the active token does not repair a revoked token retained by an existing host; this version requires operator recovery for that situation. Credential removal is available only after every host journal is empty.
 
-```bash
-npm install -g @getpaseo/cli@0.8.0
-```
+## First workspace
 
-`doctor` confirms Vercel authentication and the agent key without creating
-anything.
+1. Open **Vercel Sandboxes** in the Paseo sidebar.
+2. Choose **Create** for Codex, Claude Code, OpenCode, or Pi. The first Create installs the Paseo CLI and the agent CLI inside the new sandbox and takes a few minutes; later starts reuse the saved filesystem.
+3. When the host is ready, choose **Reveal pairing link**, copy it, and paste it into Paseo's existing host pairing flow. Pairing is manual and happens once for that host.
+4. In Paseo, use **Hosts → Add host** and paste the pairing link.
+5. Create a workspace with the cloud host, set the repository directory to `/vercel/workspace/repo`, and choose the agent plus its Gateway model: Codex Gateway, Claude Sonnet 5, OpenCode Vercel AI Gateway, or Pi `vercel-ai-gateway`.
 
-## Create a session
+The controller daemon must be online for create, stop, resume, diagnose, and delete operations. A running cloud agent connection does not require the controller to remain online for ordinary agent work.
 
-```bash
-paseo-sandbox create --provider codex --image vercel/sandbox/universal:latest
-# prints a session id
+## Host lifecycle
 
-paseo-sandbox provision <id>
-```
+Stop saves the persistent filesystem through a Sandbox snapshot. Resume restores the same named Sandbox, records the new session ID immediately, and verifies the same daemon identity. Delete requires typing the agent ID and removes the owned Sandbox and verified snapshots.
 
-`--provider` accepts `codex`, `claude`, `opencode`, `pi`, or `copilot`.
-`--model` accepts a slash-qualified AI Gateway model ID. Omitting the model
-uses the provider default: `openai/gpt-6-astra` for Codex and Copilot, and
-`anthropic/claude-sonnet-5` for Claude, OpenCode, and Pi.
+New hosts run until the configured session timeout, 24 hours by default (45 minutes at most on the Hobby plan); existing hosts keep the timeout they were created with. The status screen shows the remote session end time, refreshes remote state on a throttled basis, and offers an explicit refresh. If a running session times out, the host changes to stopped and **Resume** becomes available; the plugin never automatically resumes it. Snapshots expire after 24 hours, and the 3 most recent snapshots are retained.
 
-`provision` creates the sandbox, installs the pinned Paseo CLI
-(`@getpaseo/cli@0.8.0`) and all pinned agent CLIs, configures Gateway access,
-starts the daemon on localhost, enables the relay, and runs Paseo's provider
-diagnostic API for the selected provider. The launcher treats a diagnostic as
-usable only when Paseo reports `Status: Ready` and at least one model. If the
-diagnostic fails after pairing, the session is marked failed but its pairing
-link is preserved so `connect` and `resume` remain available for recovery.
+Snapshot recovery restores files and workspace history. It does not resume an active process or continue an interrupted turn.
 
-The exact agent pins are `@openai/codex@0.154.0`,
-`@anthropic-ai/claude-code@2.1.273`, `opencode-ai@1.18.31`,
-`@earendil-works/pi-coding-agent@0.85.1`, and `@github/copilot@1.0.83`.
-These are external CLI versions, not Paseo's bundled server SDK versions.
+The host uses the Vercel universal Sandbox image and a compatibility bootstrap that installs the pinned Paseo and agent CLIs. The managed image alone is not treated as a source of exact agent pins.
 
-The disposable sandbox home receives owner-only files. The launcher pins the
-provider directories in the daemon environment: Claude to
-`$HOME/.claude`, OpenCode config to `$HOME/.config/opencode`, OpenCode data to
-`$HOME/.local/share`, and Pi to `$HOME/.pi/agent`. Claude settings are merged
-with a Gateway model and supported model-alias keys; OpenCode receives `vercel`
-auth in `$HOME/.local/share/opencode/auth.json`; Pi receives
-`vercel-ai-gateway` auth in `$HOME/.pi/agent/auth.json`; Codex receives its
-Responses provider in `$HOME/.codex/config.toml`. Paseo’s `config.json` adds
-the configured Gateway model to Codex’s catalog and supplies Copilot’s configured
-model as its picker entry and BYOK default. The configured Copilot picker entry is static;
-it does not establish runtime model discovery, model execution, or Gateway BYOK
-routing. `OPENCODE_AUTH_CONTENT` is
-cleared so it cannot override the managed file. Unrelated JSON entries, legal
-Codex TOML values, and Codex settings such as `approval_policy` are preserved
-across retries. The Gateway key itself is passed only through command
-environment, never bootstrap source, command arguments, or logs.
+## State and recovery
 
-## Run a sample task
+Journals and credentials are private local files with restrictive permissions and compare-and-swap writes. Each slot has a runner lock spanning admission and worker lifetime, separate from journal locking. A disposed or replaced worker is cancelled and fenced before additional remote effects. Reload recovery marks interrupted operations failed and leaves an explicit retry action; it does not wait out a long lease.
 
-For the empty workspace created above, seed the sample project and run a task:
+A create operation allocates one stable random Sandbox name before remote work. If the create response is lost, the plugin retains the full host record and its credentials. Retry checks the same name. Delete also retains that record while the allocation remains uncertain; when the host can be found and verified, retrying Delete removes it. An absent lookup alone does not prove a timed-out create allocated nothing.
 
-```bash
-paseo-sandbox seed <id>
-paseo-sandbox run <id> 'Run npm test, fix src/math.mjs so the test passes, and explain the change. Do not modify test/ or package.json.'
-```
+Provider diagnostics expose only structured readiness, provider match, exit status, and model count. Raw CLI stdout and stderr never enter public status, journals, or logs.
 
-Expect one passing test and no failures. This creates the conversation you open
-in the next step. `seed` writes fixture files; use it only in this empty sample
-workspace, not in your own repository.
+The existing standalone CLI and web launcher remain untouched. Remote publication is deferred. Offline package checks do not claim live browser, native, or cloud behavior.
 
-## Connect from Paseo
+## Development checks
 
-```bash
-paseo-sandbox connect <id>
-```
+From this plugin directory, run `npm ci`, `npm run typecheck`, `npm test`, and `npm run test:package`. The package check verifies that a clean copy of the committed files needs no install or build step and that the committed SDK prebundle is reproducible from the lockfile.
 
-It prints the exact command for the CLI client:
+`npm run test:e2e` (run `npm run build` first; it imports the compiled SDK) installs a clean Git copy into an isolated Paseo daemon (0.8 or 0.9; point `PASEO_E2E_CLI` at the CLI entry point and set `PASEO_E2E_CLI_MODE=run` for a 0.9 controller, which starts with `daemon run` and persistent configuration instead of 0.8 flags), drives the browser UI for all four agents, verifies files and follow-ups after restart, then deletes its hosts and snapshots. It uses billable cloud resources. Set these environment variables in your local shell without committing their values:
 
-```bash
-PASEO_HOST="$(paseo-sandbox connect <id> --url)" paseo ls
-```
+- `PASEO_E2E_RUN=1`
+- `PASEO_E2E_CLI`: absolute path to `@getpaseo/cli/dist/index.js` from version 0.8.0
+- `PASEO_E2E_PLAYWRIGHT`: absolute path to an installed Playwright module with Chromium available
+- `VERCEL_TOKEN`, `VERCEL_TEAM_ID`, `VERCEL_PROJECT_ID`, and `AI_GATEWAY_API_KEY`
+- Optional `PASEO_E2E_REPORT`: destination for the redacted JSON report
 
-`connect` prints this command without exposing the credential. `connect <id>
---url` deliberately reveals the private link for pairing a graphical client.
-The environment-variable form keeps the link out of process arguments.
-
-To pair the [Paseo web client](https://app.paseo.sh), run
-`paseo-sandbox connect <id> --url`. Copy the entire URL, click your browser's
-address bar, paste it, and navigate. Paste into the browser address bar,
-not the agent's message box. Open the existing conversation in the sidebar.
-Web pairing and user-originated follow-ups were verified with Codex, Claude
-Code, OpenCode, and Pi on September 16, 2026. Desktop and mobile were not
-part of that verification.
-The pairing link is a credential: anyone holding it can reach your daemon.
-Do not commit it or include it in shared logs.
-
-## Stop and resume
-
-```bash
-paseo-sandbox stop <id>
-paseo-sandbox resume <id>
-```
-
-`resume` requires a stopped or stopping Sandbox; the SDK waits for snapshotting
-to finish. If it is already running, finish active work
-and run `stop` first. This prevents an existing daemon from retaining old credentials.
-
-`resume` restarts the daemon, so it needs `AI_GATEWAY_API_KEY` in the
-environment again, and it refuses to continue if the restarted daemon's
-identity does not match the original pairing offer.
-
-Stop snapshots the sandbox filesystem. Resume boots a new VM session from that
-snapshot. Your repository files, Paseo home, and agent history on disk survive.
-Running processes do not survive. The daemon is restarted on resume. Continue
-an existing conversation with:
-
-```bash
-PASEO_HOST="$(paseo-sandbox connect <id> --url)" paseo send <agent-id> '<follow-up>'
-```
-
-This starts a new turn using the saved conversation.
-
-## Export your work
-
-```bash
-paseo-sandbox export <id> --output ./my-recovered-work
-```
-
-Exports the full workspace (tracked and untracked files) to `./my-recovered-work`
-and writes SHA-256 hashes to the sidecar `./my-recovered-work.manifest.json`.
-The hashes describe the exported local files. Finish active tasks before exporting
-if you need a consistent workspace across files.
-A workspace file named `manifest.json` is preserved and included in those hashes.
-The command refuses to overwrite an existing output directory or sidecar. Its
-JSON output includes `exported`, `manifest` (the sidecar path), and `files`.
-
-If provisioning fails, the launcher saves a redacted `failed` state and prints
-the destroy command. It keeps any created sandbox available for inspection until
-you destroy it or its timeout expires.
-
-## Clean up
-
-```bash
-paseo-sandbox destroy <id>
-```
-
-Deletes the sandbox and all snapshots recorded for the session, then verifies
-nothing owned remains. Sandbox snapshots are billed storage, so destroy when
-you are done.
-
-## Verification and limitations
-
-The September 16 checks exercised Codex, Claude Code, OpenCode, and Pi
-through Paseo 0.8.0 and AI Gateway on `vercel/sandbox/universal:latest`.
-Each agent fixed a seeded addition bug, passed the unchanged test, and
-answered a browser-originated follow-up by rerunning the test. Earlier
-five-provider checks also exercised stop/resume, conversation recall, and
-workspace export. These are bounded fixture checks, not proof that every
-repository, model, or client feature works.
-
-The default launcher uses `vercel/sandbox/node:24`. Pass
-`--image vercel/sandbox/universal:latest` to select the universal image.
-Provisioning installs the package's pinned CLIs even when an image already
-contains agent binaries. The universal-image inventory test separately
-verified its four preinstalled agents without replacing them.
-
-## Limitations
-
-- Desktop and mobile clients require separate device tests.
-- Agent conversations on one sandbox share the filesystem, user, and
-  credentials. Separate folders are not separate security boundaries.
-  Create separate sandbox sessions for untrusted projects.
-- The launcher runs tasks in permissive agent modes. Use the sample fixture
-  first and review the agent's permission mode before opening other code.
-- Stop during an active turn terminates the process. Files and conversation
-  history survive through snapshots; the in-flight turn does not continue.
-- Sessions time out after 30 minutes by default. This launcher does not
-  automatically extend the timeout. Resume restores the filesystem and
-  restarts the daemon; it does not make an interrupted task finish itself.
-- Snapshot retention is capped at the three most recent snapshots, with
-  24-hour expiration. Export work before the last usable snapshot expires.
-- Local session records contain the pairing link and are required to manage
-  the sandbox. Preserve them in `~/.paseo-vercel-sandbox`, or the directory
-  selected by `PASEO_SANDBOX_STATE_DIR`, and keep them private.
-- AI Gateway credentials are available to the trusted agent processes inside
-  the sandbox. Relay encryption protects transport, not access between
-  agents sharing that sandbox.
-
-## How it works
-
-1. `provision` creates a persistent sandbox with the selected image and
-   ownership tags. Without `--image`, the launcher selects `vercel/sandbox/node:24`.
-2. A bootstrap script installs pinned CLIs and writes merge-safe Gateway
-   configuration for all five agents.
-3. `paseo daemon pair --relay --json` inside the sandbox produces the offer
-   link. The launcher extracts and validates the daemon identity before
-   returning the link.
-4. Your client talks to the daemon end-to-end encrypted through the relay.
-5. `stop` snapshots the filesystem; `resume` boots from the latest snapshot,
-   refreshes file-backed credentials, and restarts the daemon.
-6. `destroy` deletes the sandbox and its snapshots and verifies removal.
-
-## Development
-
-Run these commands from the repository root:
-
-```bash
-npm ci
-npm run typecheck
-npm test
-npm run build
-npm run test:package
-```
-
-Live end-to-end verification (creates real billable resources, cleans them up
-on success and on failure):
-
-```bash
-paseo_test_root="$(mktemp -d)"
-export PASEO_SANDBOX_STATE_DIR="$paseo_test_root/state"
-export PASEO_TEST_RECEIPTS_DIR="$paseo_test_root/receipts"
-npm run build
-npm run test:live
-```
-
-The runner uses an isolated local client configuration and retains redacted
-receipts. Private session state stays in `PASEO_SANDBOX_STATE_DIR`; keep it
-private because it contains pairing links. Cleanup removes the remote Sandbox
-and snapshots, not these local records.
+The test reports its private recovery directory if a failure needs inspection. Keep that directory private: it contains test credentials and pairing state. Mobile and desktop clients require separate verification.

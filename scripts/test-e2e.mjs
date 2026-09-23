@@ -113,10 +113,10 @@ async function verifyAbsent(agent) {
   report.cleanup.push({ agent: agent.id, hostAbsent: true, snapshotsAbsent: snapshots.length });
 }
 try {
-  const source = join(root, "source"); const staged = join(source, "plugins/vercel-sandbox");
+  const source = join(root, "source"); const staged = source;
   await cp(plugin, staged, { recursive: true, filter: p => !p.slice(plugin.length).split(/[\\/]/).some(part => ["node_modules", "dist", ".git", ".vercel"].includes(part) || part.startsWith(".env")) && !p.endsWith(".edit-lock") });
   const git = args => execFileSync("git", args, { cwd: source, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
-  git(["init", "-b", "test"]); git(["add", "plugins"]);
+  git(["init", "-b", "test"]); git(["add", "-A"]);
   git(["-c", "user.name=Plugin tests", "-c", "user.email=plugin-tests@example.invalid", "commit", "-m", "Plugin test fixture"]);
   report.fixtureCommit = git(["rev-parse", "HEAD"]).trim();
   // Paseo 0.8 takes flags on `daemon start`; 0.9 removed them in favour of `daemon run` plus PASEO_* env overrides.
@@ -136,9 +136,9 @@ try {
   report.controller = { cliVersion, daemonVersion: controllerStatus.daemonVersion, mode: controllerMode, relayEnabled: controllerStatus.relay?.enabled };
   assert.equal(controllerStatus.relay?.enabled, false, "controller relay must be off in the E2E");
   assert.equal(JSON.parse(await readFile(join(home, "config.json"), "utf8")).daemon.mcp.enabled, false);
-  const installed = JSON.parse(runCli(["plugin", "add", `${pathToFileURL(source)}:plugins/vercel-sandbox`, "--ref", report.fixtureCommit, "--host", `127.0.0.1:${port}`, "--json"]));
+  const installed = JSON.parse(runCli(["plugin", "add", `${pathToFileURL(source)}`, "--ref", report.fixtureCommit, "--host", `127.0.0.1:${port}`, "--json"]));
   assert.equal(installed.source, "git"); assert.equal(installed.status, "running"); assert.equal(installed.commit, report.fixtureCommit);
-  record("clean Git subdirectory install and server activation");
+  record("clean Git install from the repository root and server activation");
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ permissions: ["clipboard-read", "clipboard-write"], viewport: { width: 1440, height: 1000 } });
   page = await context.newPage(); page.setDefaultTimeout(30000);
