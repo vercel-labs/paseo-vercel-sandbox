@@ -1,6 +1,6 @@
 # Paseo Vercel Sandbox plugin
 
-This Paseo plugin (Paseo 0.9 or newer) manages four persistent Vercel Sandbox agent hosts: Codex, Claude Code, OpenCode, and Pi. It uses Paseo's native surface, settings screen, and typed RPC. It does not require the repository's Next.js app, Vercel Blob, or a separate launcher.
+This Paseo plugin (Paseo 0.9 or newer) manages four persistent Vercel Sandbox agent hosts: Codex, Claude Code, OpenCode, and Pi. It uses Paseo's native surface, settings screen, and typed RPC.
 
 ## Install
 
