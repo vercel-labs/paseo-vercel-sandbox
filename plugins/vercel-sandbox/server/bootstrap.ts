@@ -2,7 +2,7 @@ import type { Sandbox } from "./sdk.js";
 import type { SessionState } from "./types.js";
 import { PROVIDERS, providerConfigScript, redactText, resolveProvider } from "./providers.js";
 
-export const PASEO_CLI_VERSION = "0.8.0";
+export const PASEO_CLI_VERSION = "0.9.1";
 export const DEFAULT_PASEO_HOME = "/vercel/paseo-home";
 export const DEFAULT_WORKSPACE = "/vercel/workspace";
 export const DEFAULT_REPO_PATH = "/vercel/workspace/repo";
@@ -83,7 +83,7 @@ check_cli() {
   local package_version="\${package_spec##*@}"
   local package_dir="$HOME/.npm-global/lib/node_modules/$package_name"
   if [ ! -d "$package_dir" ]; then
-    npm install -g "$package_name@$package_version"
+    npm install -g --allow-scripts=esbuild,node-pty "$package_name@$package_version"
   fi
   if [ -f "$package_dir/package.json" ] && ! node -e '
     const fs = require("node:fs");

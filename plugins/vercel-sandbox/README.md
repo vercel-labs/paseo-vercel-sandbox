@@ -4,7 +4,9 @@ This Paseo plugin (Paseo 0.8 or newer) manages four persistent Vercel Sandbox ag
 
 ## Install
 
-Use Node.js 24 or newer and Paseo 0.8.0 or newer on both the controller daemon and client (verified on 0.8.0 and 0.9.1). Hosts created by the plugin run Paseo 0.8.0 inside the sandbox; Paseo 0.9 clients connect to 0.8.0 daemons. In **Settings → Plugins**, turn on **Enable plugins**.
+Use Node.js 24 or newer and Paseo 0.8.0 or newer on both the controller daemon and client (verified on 0.8.0 and 0.9.1). In **Settings → Plugins**, turn on **Enable plugins**.
+
+Hosts created by the plugin run Paseo 0.9.1 inside the sandbox, so current desktop, web and mobile clients can read their session history.
 
 Install it from this repository:
 

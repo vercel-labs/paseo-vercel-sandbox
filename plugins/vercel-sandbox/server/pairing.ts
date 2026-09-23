@@ -80,7 +80,7 @@ export async function startDaemonAndPair(
         `if ! node "$HOME/.paseo-sandbox/configure-providers.js"; then echo 'provider configuration refresh failed; refusing to start daemon' >&2; exit 1; fi; ` +
         `export PASEO_HOME=${shellQuote(home)}; ` +
         `export PATH="$HOME/.npm-global/bin:$PATH"; ` +
-        `nohup paseo daemon start --foreground --home ${shellQuote(home)} --listen 127.0.0.1:6767 --relay > ${shellQuote(home + "/daemon.log")} 2>&1 & ` +
+        `paseo daemon start --home ${shellQuote(home)} --timeout 240 >> ${shellQuote(home + "/daemon.log")} 2>&1; ` +
         `for i in $(seq 1 150); do ` +
         `  out=$(paseo daemon status --home ${shellQuote(home)} --json 2>/dev/null) && ` +
         `  echo "$out" | grep -q '"localDaemon": *"running"' && break; ` +

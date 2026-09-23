@@ -1,8 +1,24 @@
 {
   "name": "paseo-vercel-sandbox-plugin",
   "version": "0.1.0",
-  "private": true,
+  "description": "Run coding agents in persistent Vercel Sandboxes from Paseo, with the AI Gateway key brokered through the sandbox firewall.",
+  "keywords": [
+    "paseo",
+    "paseo-plugin",
+    "vercel",
+    "vercel-sandbox",
+    "coding-agent"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vercel-labs/paseo-vercel-sandbox.git",
+    "directory": "plugins/vercel-sandbox"
+  },
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "build": "node scripts/build-sdk.mjs && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -27,7 +43,14 @@
     "typescript": "5.9.3",
     "zod": "4.4.3"
   },
-  "engines": {
-    "node": ">=24"
-  }
+  "files": [
+    "paseo-plugin.json",
+    "index.client.tsx",
+    "index.server.ts",
+    "client/",
+    "server/",
+    "shared/",
+    "README.md",
+    "LICENSE"
+  ]
 }

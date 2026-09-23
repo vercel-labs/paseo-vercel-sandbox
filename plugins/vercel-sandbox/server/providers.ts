@@ -442,12 +442,14 @@ const paseoHome = ensureDirectory(${JSON.stringify(state.paseoHome)}, true);
 const paseoConfigPath = path.join(paseoHome, 'config.json');
 const paseoConfig = readJsonObject(paseoConfigPath);
 if (preimages.get(paseoConfigPath) === 'MISSING') {
-  Object.assign(paseoConfig, {
-    version: 1,
-    daemon: { listen: '127.0.0.1:6767', cors: { allowedOrigins: ['https://app.paseo.sh'] }, relay: { enabled: false } },
-    app: { baseUrl: 'https://app.paseo.sh' },
-  });
+  Object.assign(paseoConfig, { version: 1, app: { baseUrl: 'https://app.paseo.sh' } });
 }
+// Paseo 0.9 removed the daemon start flags, so listen and relay must come from
+// config.json on every run, not only when the file is first created.
+const daemonConfig = objectField(paseoConfig, 'daemon');
+daemonConfig.listen = '127.0.0.1:6767';
+daemonConfig.cors = { ...objectField(daemonConfig, 'cors'), allowedOrigins: ['https://app.paseo.sh'] };
+daemonConfig.relay = { ...objectField(daemonConfig, 'relay'), enabled: true };
 const agentProviders = objectField(objectField(paseoConfig, 'agents'), 'providers');
 for (const provider of Object.values(agentProviders)) {
   requireObject(provider, 'agent provider');
