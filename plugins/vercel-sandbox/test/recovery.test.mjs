@@ -14,6 +14,7 @@ const { executeOperation, gatewayCreditsRequest, GATEWAY_CREDITS_URL } = await i
 const { PluginService } = await import("../dist/server/service.js");
 const { providerDiagnostic } = await import("../dist/server/agent.js");
 const { PROVIDERS } = await import("../dist/server/providers.js");
+const { BROKERED_GATEWAY_KEY } = await import("../dist/server/network.js");
 
 const credentials = new CredentialsStore(root);
 const slots = new SlotStore(root);
@@ -123,6 +124,7 @@ test("ambiguous create failure is surfaced and retry reconciles without a second
     startDaemonAndPair: async () => { throw new Error("unreachable"); },
     providerDiagnostic: async () => ({ ok: true, provider: "codex", providerMatched: true, status: "Ready", modelCount: 1, exitCode: 0, parseError: false }),
     verifyGatewayKey: async () => {},
+    applyGatewayPolicy: async () => {},
   };
   await executeOperation(slots, credentials, "codex", operationId, deps);
   const failed = await slots.read("codex");
@@ -184,6 +186,7 @@ test("explicit delete removes the owned sandbox and journal session", async () =
     startDaemonAndPair: async () => { throw new Error("unreachable"); },
     providerDiagnostic: async () => ({ ok: true, provider: "pi", providerMatched: true, status: "Ready", modelCount: 1, exitCode: 0, parseError: false }),
     verifyGatewayKey: async () => {},
+    applyGatewayPolicy: async () => {},
   };
   await executeOperation(slots, credentials, "pi", operationId, deps);
   assert.equal(destroyed, true);
@@ -287,6 +290,7 @@ function makeDeps(state, overrides = {}) {
       modelCount: 12, exitCode: 0, parseError: false,
     }),
     verifyGatewayKey: async () => {},
+    applyGatewayPolicy: async () => {},
     ...overrides,
   };
 }
@@ -799,4 +803,31 @@ test("gateway preflight uses the documented authenticated credits endpoint", asy
   await assert.rejects(() => gatewayCreditsRequest("invalid-secret", undefined, async () => ({ ok: false, status: 401 })), /gateway_key_rejected/);
   assert.equal(requests[0].url, GATEWAY_CREDITS_URL);
   assert.equal(requests[0].authorization, "Bearer gateway-secret");
+});
+
+test("start brokers the Gateway key through the firewall and never hands it to the sandbox", async () => {
+  const { credentials, slots, active } = await makeRoot();
+  const state = makeSession(active, "codex", { phase: "intent", sessionIds: [] });
+  const seen = { policyKeys: [], sandboxKeys: [] };
+  const deps = makeDeps(state, {
+    getSandbox: async () => { throw Object.assign(new Error("not found"), { response: { status: 404 } }); },
+    applyGatewayPolicy: async (_sandbox, key) => { seen.policyKeys.push(key); },
+    runBootstrap: async (_sandbox, _state, key) => { seen.sandboxKeys.push(key); },
+    startDaemonAndPair: async (_sandbox, _state, key) => {
+      seen.sandboxKeys.push(key);
+      return { url: pairingUrl(), serverId: "server-one", daemonPublicKeyB64: Buffer.alloc(32, 1).toString("base64") };
+    },
+    providerDiagnostic: async (_sandbox, _state, key) => {
+      seen.sandboxKeys.push(key);
+      return { ok: true, provider: "codex", providerMatched: true, status: "Ready", modelCount: 12, exitCode: 0, parseError: false };
+    },
+  });
+  const acquired = await acquireOperation(slots, "codex", "start", () => state);
+  await executeOperation(slots, credentials, "codex", acquired.operation.id, deps);
+  const record = await slots.read("codex");
+  assert.equal(record.value.session.phase, "ready", JSON.stringify(record.value.session.lastError ?? null));
+  assert.deepEqual(seen.policyKeys, ["case-gateway-secret"]);
+  assert.equal(seen.sandboxKeys.length, 3);
+  assert.ok(seen.sandboxKeys.every((key) => key === BROKERED_GATEWAY_KEY));
+  assert.ok(seen.sandboxKeys.every((key) => key !== "case-gateway-secret"));
 });

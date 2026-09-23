@@ -5,6 +5,7 @@ import { providerDiagnostic } from "./agent.js";
 import { runBootstrap, writeBootstrapToSandbox } from "./bootstrap.js";
 import { failOperation, fencedUpdate, finishOperation, LEASE_RENEWAL_MS, renewOperation } from "./operations.js";
 import { parsePairingOffer, startDaemonAndPair } from "./pairing.js";
+import { applyGatewayPolicy, BROKERED_GATEWAY_KEY } from "./network.js";
 import { PROVIDERS, redactText } from "./providers.js";
 import { SlotStore } from "./store.js";
 import { logEvent } from "./log.js";
@@ -35,6 +36,7 @@ export interface RuntimeDependencies {
   startDaemonAndPair: typeof startDaemonAndPair;
   providerDiagnostic: typeof providerDiagnostic;
   verifyGatewayKey: (key: string, signal?: AbortSignal) => Promise<void>;
+  applyGatewayPolicy: typeof applyGatewayPolicy;
 }
 
 export interface WorkerFence {
@@ -71,6 +73,7 @@ const defaultDependencies: RuntimeDependencies = {
   startDaemonAndPair,
   providerDiagnostic,
   verifyGatewayKey,
+  applyGatewayPolicy,
 };
 
 type OperationError = Parameters<typeof failOperation>[3];
@@ -347,6 +350,11 @@ async function start(
       dependencies.getSandbox(credential, state, false, signal),
     );
   }
+  // The key lives only in the firewall policy. A resumed session may not carry the
+  // policy it was created with, so it is reapplied every time the sandbox starts.
+  await remoteEffect(store, agent, operationId, fence, REMOTE_METADATA_TIMEOUT_MS, (signal) =>
+    dependencies.applyGatewayPolicy(sandbox!, credential.gatewayKey, signal),
+  );
   const previousIdentity = state.pairingUrl ? parsePairingOffer(state.pairingUrl) : undefined;
   recordVerifiedSession(sandbox, state);
   await checkpoint(store, agent, operationId, (session) => {
@@ -360,10 +368,10 @@ async function start(
   );
   await checkpoint(store, agent, operationId, (session) => { session.phase = "bootstrapping"; });
   await remoteEffect(store, agent, operationId, fence, BOOTSTRAP_TIMEOUT_MS, (signal) =>
-    dependencies.runBootstrap(sandbox, state, credential.gatewayKey, BOOTSTRAP_TIMEOUT_MS, signal),
+    dependencies.runBootstrap(sandbox, state, BROKERED_GATEWAY_KEY, BOOTSTRAP_TIMEOUT_MS, signal),
   );
   const pairing = await remoteEffect(store, agent, operationId, fence, PAIRING_TIMEOUTS.start + PAIRING_TIMEOUTS.pair, (signal) =>
-    dependencies.startDaemonAndPair(sandbox, state, credential.gatewayKey, PAIRING_TIMEOUTS, signal),
+    dependencies.startDaemonAndPair(sandbox, state, BROKERED_GATEWAY_KEY, PAIRING_TIMEOUTS, signal),
   );
   if (previousIdentity && (previousIdentity.serverId !== pairing.serverId || previousIdentity.daemonPublicKeyB64 !== pairing.daemonPublicKeyB64)) {
     throw new Error("daemon_identity_changed");
@@ -375,7 +383,7 @@ async function start(
     session.lastError = undefined;
   });
   const diagnostic = await remoteEffect(store, agent, operationId, fence, DIAGNOSTIC_TIMEOUT_MS, (signal) =>
-    dependencies.providerDiagnostic(sandbox, state, credential.gatewayKey, DIAGNOSTIC_TIMEOUT_MS, signal),
+    dependencies.providerDiagnostic(sandbox, state, BROKERED_GATEWAY_KEY, DIAGNOSTIC_TIMEOUT_MS, signal),
   );
   if (!diagnostic.ok || !diagnostic.providerMatched) throw new Error("provider_readiness_failed");
   await checkpoint(store, agent, operationId, (session) => {
@@ -433,6 +441,9 @@ async function resume(
       dependencies.getSandbox(credential, state, false, signal),
     );
   }
+  await remoteEffect(store, agent, operationId, fence, REMOTE_METADATA_TIMEOUT_MS, (signal) =>
+    dependencies.applyGatewayPolicy(sandbox, credential.gatewayKey, signal),
+  );
   recordVerifiedSession(sandbox, state);
   await checkpoint(store, agent, operationId, (session) => {
     session.sessionIds = state.sessionIds;
@@ -440,7 +451,7 @@ async function resume(
     session.expiresAt = sandbox?.expiresAt?.toISOString();
   });
   const pairing = await remoteEffect(store, agent, operationId, fence, PAIRING_TIMEOUTS.start + PAIRING_TIMEOUTS.pair, (signal) =>
-    dependencies.startDaemonAndPair(sandbox, state, credential.gatewayKey, PAIRING_TIMEOUTS, signal),
+    dependencies.startDaemonAndPair(sandbox, state, BROKERED_GATEWAY_KEY, PAIRING_TIMEOUTS, signal),
   );
   if (identity.serverId !== pairing.serverId || identity.daemonPublicKeyB64 !== pairing.daemonPublicKeyB64) {
     throw new Error("daemon_identity_changed");
@@ -465,7 +476,7 @@ async function diagnose(
     dependencies.getSandbox(credential, state, false, signal),
   );
   const diagnostic = await remoteEffect(store, agent, operationId, fence, DIAGNOSTIC_TIMEOUT_MS, (signal) =>
-    dependencies.providerDiagnostic(sandbox, state, credential.gatewayKey, DIAGNOSTIC_TIMEOUT_MS, signal),
+    dependencies.providerDiagnostic(sandbox, state, BROKERED_GATEWAY_KEY, DIAGNOSTIC_TIMEOUT_MS, signal),
   );
   await checkpoint(store, agent, operationId, (session) => {
     session.lastDiagnostic = { ...diagnostic, checkedAt: new Date().toISOString() };

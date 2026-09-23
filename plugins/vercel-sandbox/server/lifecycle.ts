@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Sandbox, Snapshot } from "./sdk.js";
 import type { VercelCredentials } from "./credentials.js";
+import { gatewayNetworkPolicy } from "./network.js";
 import type { SessionState, SnapshotRecord } from "./types.js";
 
 export const DEFAULT_IMAGE = "vercel/sandbox/universal:latest";
@@ -37,16 +38,18 @@ export function recordVerifiedSession(sandbox: Sandbox, state: SessionState): st
 }
 
 export async function createSandbox(
-  creds: VercelCredentials & { sessionTimeoutMs?: number },
+  creds: VercelCredentials & { gatewayKey: string; sessionTimeoutMs?: number },
   state: SessionState,
   signal?: AbortSignal,
 ): Promise<Sandbox> {
+  const { gatewayKey, sessionTimeoutMs, ...vercel } = creds;
   return Sandbox.create({
-    ...creds,
+    ...vercel,
+    networkPolicy: gatewayNetworkPolicy(gatewayKey),
     name: state.sandboxName,
     image: state.image,
     region: state.region,
-    timeout: creds.sessionTimeoutMs ?? DEFAULT_TIMEOUT_MS,
+    timeout: sessionTimeoutMs ?? DEFAULT_TIMEOUT_MS,
     persistent: true,
     snapshotExpiration: SNAPSHOT_EXPIRATION_MS,
     keepLastSnapshots: { count: KEEP_LAST_SNAPSHOTS },
