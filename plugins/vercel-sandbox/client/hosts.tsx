@@ -1,6 +1,6 @@
 import type { PluginSurfaceProps } from "@getpaseo/plugin/client";
 import { useRpc } from "@getpaseo/plugin/client";
-import { copyText } from "@getpaseo/plugin/client/react-native";
+import { copyText, useToast } from "@getpaseo/plugin/client/react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { AGENT_DETAILS, AGENT_IDS, type AgentId } from "../shared/agents.js";
@@ -22,6 +22,7 @@ interface HostsScreenProps extends PluginSurfaceProps {
 
 export function HostsScreen({ theme, layout, openSettings }: HostsScreenProps) {
   const getStatus = useRpc(statusRpc);
+  const toast = useToast();
   const act = useRpc(actRpc);
   const revealPairing = useRpc(revealPairingRpc);
   const [status, setStatus] = useState<StatusOutput | null>(null);
@@ -232,8 +233,29 @@ export function HostsScreen({ theme, layout, openSettings }: HostsScreenProps) {
             </Pressable>
             {pairingUrl && (
               <View style={{ gap: 8 }}>
-                <Text style={styles.pairing} selectable>{pairingUrl}</Text>
-                <Pressable accessibilityRole="button" onPress={() => void copyText(pairingUrl).catch(() => setError("Copying is unavailable on this client."))} style={buttonStyle()}>
+                {/* Web (desktop app included): a read-only field that selects everything on focus, so one click plus the OS copy shortcut works even where the clipboard API does not. Native: a disabled TextInput cannot be long-pressed, so keep selectable text there. */}
+                {layout.platform === "web" ? (
+                  <TextInput
+                    accessibilityLabel="Pairing link (select all, then copy)"
+                    value={pairingUrl}
+                    editable={false}
+                    selectTextOnFocus
+                    multiline
+                    numberOfLines={4}
+                    style={[styles.input, styles.pairing]}
+                  />
+                ) : (
+                  <Text style={styles.pairing} selectable>{pairingUrl}</Text>
+                )}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    void copyText(pairingUrl)
+                      .then(() => toast.show("Pairing link copied", { variant: "success" }))
+                      .catch(() => toast.error("Could not copy. Select the link text, then use Copy."));
+                  }}
+                  style={buttonStyle()}
+                >
                   <Text style={styles.actionText}>Copy pairing link</Text>
                 </Pressable>
               </View>
